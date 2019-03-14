@@ -1,4 +1,4 @@
-const { BN, time, ether, shouldFail, expectEvent, balance } = require("openzeppelin-test-helpers");
+const { BN, time, shouldFail, expectEvent } = require("openzeppelin-test-helpers");
 
 const { promisify } = require("util");
 
@@ -124,12 +124,7 @@ contract("LostKeyMain", accounts => {
     }
   });
 
-  it("#6 fallback function should revert", async () => {
-    const contract = await LostKey.new();
-    await shouldFail.reverting(contract.sendTransaction({ value: ether("1") }));
-  });
-
-  it("#7 cannot execute contract after kill", async () => {
+  it("#6 cannot execute contract after kill", async () => {
     const tokens = await createTokensArray(2);
     const contract = await LostKey.new();
     await contract.addTokenAddresses(tokens.map(t => t.address), { from: TARGET });
@@ -151,7 +146,7 @@ contract("LostKeyMain", accounts => {
     await shouldFail.reverting(contract.check());
   });
 
-  it("#8 i am available", async () => {
+  it("#7 i am available", async () => {
     const tokens = await createTokensArray(2);
     const contract = await LostKey.new();
     await contract.addTokenAddresses(tokens.map(t => t.address), { from: TARGET });
@@ -174,7 +169,7 @@ contract("LostKeyMain", accounts => {
     expectEvent.inLogs(tx.logs, "Notified");
   });
 
-  it("#9 check after i am alive", async () => {
+  it("#8 check after i am alive", async () => {
     const tokens = await createTokensArray(2);
     const contract = await LostKey.new();
     await contract.addTokenAddresses(tokens.map(t => t.address), { from: TARGET });

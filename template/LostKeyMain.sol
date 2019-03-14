@@ -1,8 +1,9 @@
 pragma solidity ^0.4.23;
 
+import "./LostKeyERC20Wallet.sol";
 import "./LostKeyNotify.sol";
 
-contract LostKeyMain is LostKeyNotify {
+contract LostKeyMain is LostKeyERC20Wallet, LostKeyNotify {
   constructor() public SoftDestruct(D_TARGET) {
     address[D_HEIRS_COUNT] memory _recipients = [D_HEIRS];
     uint[D_HEIRS_COUNT] memory _percents = [D_PERCENTS];
@@ -23,6 +24,5 @@ contract LostKeyMain is LostKeyNotify {
     require(summaryPercent == 100, "Sum of percents must be equal to 100");
 
     noActivityPeriod = D_PERIOD_SECONDS;
-    lastActiveTs = uint64(block.timestamp);
   }
 }

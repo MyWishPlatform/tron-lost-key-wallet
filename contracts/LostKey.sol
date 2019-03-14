@@ -17,6 +17,16 @@ contract LostKey is Checkable, SoftDestruct, ERC223Receiver {
   }
 
   /**
+   * Period of time (in seconds) without activity.
+   */
+  uint32 public noActivityPeriod;
+
+  /**
+   * Last active timestamp.
+   */
+  uint64 public lastActiveTs;
+
+  /**
    * Addresses of token contracts
    */
   address[] private tokenAddresses;
@@ -33,8 +43,18 @@ contract LostKey is Checkable, SoftDestruct, ERC223Receiver {
 
   event TokenAdded(address indexed token);
 
-  function() public payable {
-    require(false, "Fallback function not allowed");
+  event Withdraw(address _sender, uint amount, address _beneficiary);
+  // Occurs when founds were sent.
+  event FundsAdded(address indexed from, uint amount);
+  // Occurs when accident leads to sending funds to recipient.
+  event FundsSent(address recipient, uint amount, uint percent);
+
+  constructor() public {
+    lastActiveTs = uint64(block.timestamp);
+  }
+
+  function() public payable onlyAlive notTriggered {
+    emit FundsAdded(msg.sender, msg.value);
   }
 
   function tokenFallback(address, uint, bytes) public {
@@ -111,6 +131,23 @@ contract LostKey is Checkable, SoftDestruct, ERC223Receiver {
     }
   }
 
+  function _distributeFunds() internal {
+    uint[] memory amounts = _calculateAmounts(address(this).balance);
+
+    for (uint i = 0; i < amounts.length; i++) {
+      uint amount = amounts[i];
+      address recipient = percents[i].recipient;
+      uint percent = percents[i].percent;
+
+      if (amount == 0) {
+        continue;
+      }
+
+      recipient.transfer(amount);
+      emit FundsSent(recipient, amount, percent);
+    }
+  }
+
   /**
    * @dev Distribute tokens between recipients in corresponding by percents.
    */
@@ -136,14 +173,40 @@ contract LostKey is Checkable, SoftDestruct, ERC223Receiver {
     }
   }
 
+  function internalCheck() internal returns (bool) {
+    bool result = block.timestamp > lastActiveTs && (block.timestamp - lastActiveTs) >= noActivityPeriod;
+    require(msg.value == 0, "Value should be zero");
+    emit Checked(result);
+    return result;
+  }
+
   /**
    * @dev Do inner action if check was success.
    */
   function internalAction() internal {
+    _distributeFunds();
     _distributeTokens();
   }
 
   function getTokenAddresses() public view returns (address[]) {
     return tokenAddresses;
+  }
+
+  function updateLastActivity() internal {
+    lastActiveTs = uint64(block.timestamp);
+  }
+
+  function sendFundsInternal(uint _amount, address _receiver, bytes _data) internal {
+    require(address(this).balance >= _amount);
+    if (_data.length == 0) {
+      // solium-disable-next-line security/no-send
+      require(_receiver.send(_amount));
+    } else {
+      // solium-disable-next-line security/no-call-value
+      require(_receiver.call.value(_amount)(_data));
+    }
+
+    emit Withdraw(msg.sender, _amount, _receiver);
+    updateLastActivity();
   }
 }
